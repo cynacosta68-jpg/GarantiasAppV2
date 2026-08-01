@@ -47,3 +47,18 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* El reporte ejecutivo se guarda como PDF desde el diálogo de impresión
+   del navegador; acá se oculta todo lo que no es el documento. */
+@media print {
+  @page { margin: 14mm; size: A4; }
+
+  body { background: #fff; }
+
+  nav, header.app-topbar { display: none !important; }
+
+  .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+
+  .tarjeta { box-shadow: none; }
+}
