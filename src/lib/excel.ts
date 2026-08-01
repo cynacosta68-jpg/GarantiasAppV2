@@ -219,8 +219,10 @@ export function parsearLibro(buffer: ArrayBuffer, periodo: string): ResultadoPar
 
     const cargo = limpiarTexto(campos.cargo);
 
+    const fechaR = parsearFecha(campos.fechaR);
+
     filas.push({
-      fechaR: parsearFecha(campos.fechaR),
+      fechaR,
       reclamo,
       orden,
       cliente: limpiarTexto(campos.cliente),
@@ -233,7 +235,9 @@ export function parsearLibro(buffer: ArrayBuffer, periodo: string): ResultadoPar
       sucursal: limpiarTexto(campos.sucursal),
       datosExtra: extra,
       claveUnica: construirClave(reclamo, orden, cargo),
-      periodo,
+      periodo: fechaR
+        ? `${fechaR.getUTCFullYear()}-${String(fechaR.getUTCMonth() + 1).padStart(2, '0')}`
+        : periodo,
     });
   }
 

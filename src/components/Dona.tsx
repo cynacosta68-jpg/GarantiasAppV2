@@ -1,13 +1,15 @@
 'use client';
 
-import { fmtNumero } from '@/lib/format';
+import { fmtMoneda, fmtNumero } from '@/lib/format';
 
-const PALETA = ['#2B5CE6', '#7FA5F6', '#CFE0FF', '#A8B8D8'];
+const PALETA = ['#2B5CE6', '#5B84EE', '#7FA5F6', '#A6C2FA', '#CFE0FF', '#8494B4'];
 
 export default function Dona({
   datos,
+  formato = 'cantidad',
 }: {
-  datos: { etiqueta: string; valor: number }[];
+  datos: { etiqueta: string; valor: number; cantidad?: number }[];
+  formato?: 'cantidad' | 'moneda';
 }) {
   const total = datos.reduce((s, d) => s + d.valor, 0);
   const r = 78;
@@ -41,7 +43,7 @@ export default function Dona({
         </g>
       </svg>
 
-      <ul className="space-y-3">
+      <ul className="space-y-3 min-w-[220px]">
         {datos.map((d, i) => (
           <li key={d.etiqueta} className="flex items-center gap-3 text-sm">
             <span
@@ -52,8 +54,8 @@ export default function Dona({
             <span className="font-semibold text-tinta tabular ml-auto pl-4">
               {total > 0 ? `${Math.round((d.valor / total) * 100)}%` : '0%'}
             </span>
-            <span className="text-tinta-tenue tabular text-xs w-14 text-right">
-              {fmtNumero.format(d.valor)}
+            <span className="text-tinta-tenue tabular text-xs text-right whitespace-nowrap">
+              {formato === 'moneda' ? fmtMoneda.format(d.valor) : fmtNumero.format(d.valor)}
             </span>
           </li>
         ))}
