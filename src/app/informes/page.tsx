@@ -5,6 +5,7 @@ import Filtros, { EstadoFiltros, aQuery, filtrosVacios, useDimensiones } from '@
 import BarrasFinas from '@/components/BarrasFinas';
 import BarrasPorAnio from '@/components/BarrasPorAnio';
 import TablaPorAnio, { type Medida } from '@/components/TablaPorAnio';
+import ReporteEjecutivo from '@/components/ReporteEjecutivo';
 import Kpi from '@/components/Kpi';
 import { fmtMes, fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
@@ -118,6 +119,17 @@ export default function Informes() {
         <p className="text-sm text-tinta-tenue">
           Informe histórico sobre todo lo cargado. Sin rango de fechas se toma la serie completa.
         </p>
+        <div className="flex flex-wrap gap-2">
+        <ReporteEjecutivo
+          filas={datos?.filas ?? []}
+          alcance={alcance}
+          filtros={{
+            desde: filtros.desde,
+            hasta: filtros.hasta,
+            sucursales: filtros.sucursales,
+            depositos: filtros.depositos,
+          }}
+        />
         <button
           onClick={descargarCsv}
           disabled={!datos || datos.filas.length === 0}
@@ -125,6 +137,7 @@ export default function Informes() {
         >
           Descargar CSV
         </button>
+        </div>
       </div>
 
       <div className="tarjeta p-4 flex flex-wrap gap-x-10 gap-y-4">
@@ -262,104 +275,82 @@ export default function Informes() {
         />
       )}
 
-      <section className="tarjeta overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-[#F7F9FD] border-b border-borde">
-              <th className="px-3 py-3 rotulo text-left">
-                {AGRUPACIONES.find((a) => a.valor === agrupacion)?.etiqueta}
-              </th>
-              {verIngresos && (
-                <>
-                  <th className="px-3 py-3 rotulo text-right">Órdenes</th>
-                  <th className="px-3 py-3 rotulo text-right">Ingresos</th>
-                  <th className="px-3 py-3 rotulo text-right">Pendiente</th>
-                </>
-              )}
-              {verEgresos && (
-                <>
-                  <th className="px-3 py-3 rotulo text-right">Líneas</th>
-                  <th className="px-3 py-3 rotulo text-right">Unidades</th>
-                  <th className="px-3 py-3 rotulo text-right">Egresos</th>
-                </>
-              )}
-              {alcance === 'ambos' && <th className="px-3 py-3 rotulo text-right">Resultado</th>}
-            </tr>
-          </thead>
+      {/* Sin la tabla corrida hace falta decir algo cuando no hay resultados. */}
+      {(!datos || datos.filas.length === 0) && (
+        <section className="tarjeta px-4 py-16 text-center">
+          <p className="text-tinta-suave text-sm">
+            {cargando ? 'Armando el informe…' : 'No hay datos para esta combinación.'}
+          </p>
+          <p className="text-tinta-tenue text-xs mt-1">
+            Probá con otro alcance, otra agrupación o un rango de fechas más amplio.
+          </p>
+        </section>
+      )}
 
-          <tbody className="divide-y divide-borde">
-            {(datos?.filas ?? []).map((f) => {
-              const resultado = f.ingresos - f.egresos;
-              return (
-                <tr key={f.clave} className="hover:bg-[#F7F9FD]">
-                  <td className="px-3 py-2.5 text-tinta font-medium">
-                    {agrupacion === 'mes' ? fmtMes(f.clave) : f.clave}
-                  </td>
-                  {verIngresos && (
-                    <>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta-suave">{fmtNumero.format(f.ordenes)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta">{fmtMonedaExacta.format(f.ingresos)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta-suave">{fmtMonedaExacta.format(f.importePendiente)}</td>
-                    </>
-                  )}
-                  {verEgresos && (
-                    <>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta-suave">{fmtNumero.format(f.lineas)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta-suave">{fmtNumero.format(f.unidades)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-rojo">{fmtMonedaExacta.format(f.egresos)}</td>
-                    </>
-                  )}
-                  {alcance === 'ambos' && (
-                    <td className={`px-3 py-2.5 text-right font-mono text-xs tabular font-medium ${resultado < 0 ? 'text-rojo' : 'text-tinta'}`}>
-                      {fmtMonedaExacta.format(resultado)}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-
-            {(!datos || datos.filas.length === 0) && (
-              <tr>
-                <td colSpan={9} className="px-4 py-16 text-center">
-                  <p className="text-tinta-suave text-sm">
-                    {cargando ? 'Armando el informe…' : 'No hay datos para esta combinación.'}
-                  </p>
-                  <p className="text-tinta-tenue text-xs mt-1">
-                    Probá con otro alcance, otra agrupación o un rango de fechas más amplio.
-                  </p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-
-          {datos && datos.filas.length > 0 && t && (
-            <tfoot>
-              <tr className="bg-[#F7F9FD] border-t-2 border-borde font-semibold">
-                <td className="px-3 py-3 text-tinta">Total</td>
+      {/* Agrupaciones no temporales siguen necesitando una lista. */}
+      {!temporal && datos && datos.filas.length > 0 && (
+        <section className="tarjeta overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-[#F7F9FD] border-b border-borde">
+                <th className="px-3 py-3 rotulo text-left">
+                  {AGRUPACIONES.find((a) => a.valor === agrupacion)?.etiqueta}
+                </th>
                 {verIngresos && (
                   <>
-                    <td className="px-3 py-3 text-right font-mono text-xs tabular">{fmtNumero.format(t.ordenes)}</td>
-                    <td className="px-3 py-3 text-right font-mono text-xs tabular text-tinta">{fmtMonedaExacta.format(t.ingresos)}</td>
-                    <td className="px-3 py-3 text-right font-mono text-xs tabular">{fmtMonedaExacta.format(t.importePendiente)}</td>
+                    <th className="px-3 py-3 rotulo text-right">Órdenes</th>
+                    <th className="px-3 py-3 rotulo text-right">Ingresos</th>
                   </>
                 )}
                 {verEgresos && (
                   <>
-                    <td className="px-3 py-3 text-right font-mono text-xs tabular">{fmtNumero.format(t.lineas)}</td>
-                    <td className="px-3 py-3 text-right font-mono text-xs tabular">{fmtNumero.format(t.unidades)}</td>
-                    <td className="px-3 py-3 text-right font-mono text-xs tabular text-rojo">{fmtMonedaExacta.format(t.egresos)}</td>
+                    <th className="px-3 py-3 rotulo text-right">Unidades</th>
+                    <th className="px-3 py-3 rotulo text-right">Egresos</th>
                   </>
                 )}
-                {alcance === 'ambos' && (
-                  <td className={`px-3 py-3 text-right font-mono text-xs tabular ${t.resultado < 0 ? 'text-rojo' : 'text-tinta'}`}>
-                    {fmtMonedaExacta.format(t.resultado)}
-                  </td>
-                )}
+                {alcance === 'ambos' && <th className="px-3 py-3 rotulo text-right">Resultado</th>}
               </tr>
-            </tfoot>
-          )}
-        </table>
-      </section>
+            </thead>
+            <tbody className="divide-y divide-borde">
+              {datos.filas.map((f) => (
+                <tr key={f.clave} className="hover:bg-[#F7F9FD]">
+                  <td className="px-3 py-2.5 text-tinta font-medium">{f.clave}</td>
+                  {verIngresos && (
+                    <>
+                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta-suave">
+                        {fmtNumero.format(f.ordenes)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta">
+                        {fmtMonedaExacta.format(f.ingresos)}
+                      </td>
+                    </>
+                  )}
+                  {verEgresos && (
+                    <>
+                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-tinta-suave">
+                        {fmtNumero.format(f.unidades)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-xs tabular text-rojo">
+                        {fmtMonedaExacta.format(f.egresos)}
+                      </td>
+                    </>
+                  )}
+                  {alcance === 'ambos' && (
+                    <td
+                      className={`px-3 py-2.5 text-right font-mono text-xs tabular font-medium ${
+                        f.ingresos - f.egresos < 0 ? 'text-rojo' : 'text-tinta'
+                      }`}
+                    >
+                      {fmtMonedaExacta.format(f.ingresos - f.egresos)}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
     </div>
   );
 }
