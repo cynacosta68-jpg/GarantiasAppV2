@@ -8,6 +8,7 @@ const titulos: Record<string, string> = {
   '/detalle': 'Reclamos facturados',
   '/repuestos': 'Seguimiento de stock de repuestos',
   '/informes': 'Generación de informes',
+  '/usuarios': 'Usuarios y permisos',
 };
 
 export default function Topbar() {

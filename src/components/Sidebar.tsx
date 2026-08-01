@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Logo from './Logo';
 
 const items = [
@@ -9,10 +10,30 @@ const items = [
   { href: '/detalle', etiqueta: 'Reclamos', icono: '▤' },
   { href: '/repuestos', etiqueta: 'Repuestos', icono: '⚙' },
   { href: '/informes', etiqueta: 'Informes', icono: '⇩' },
+  { href: '/usuarios', etiqueta: 'Usuarios', icono: '◍', soloAdmin: true },
 ];
+
+type Sesion = { nombre: string; email: string; rol: string };
 
 export default function Sidebar() {
   const ruta = usePathname();
+  const router = useRouter();
+  const [sesion, setSesion] = useState<Sesion | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/sesion')
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setSesion)
+      .catch(() => setSesion(null));
+  }, [ruta]);
+
+  const salir = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/login');
+    router.refresh();
+  };
+
+  const visibles = items.filter((i) => !i.soloAdmin || sesion?.rol === 'admin');
 
   return (
     <nav className="w-[64px] md:w-[204px] shrink-0 bg-navy text-white flex flex-col">
@@ -25,7 +46,7 @@ export default function Sidebar() {
       </div>
 
       <div className="py-3 flex-1">
-        {items.map((i) => {
+        {visibles.map((i) => {
           const activo = i.href === '/' ? ruta === '/' : ruta.startsWith(i.href);
           return (
             <Link
@@ -42,12 +63,25 @@ export default function Sidebar() {
         })}
       </div>
 
-      <div className="hidden md:block px-4 py-4 border-t border-white/10 text-xs">
-        <p className="font-medium">Consolidado mensual</p>
-        <p className="text-white/50 mt-1 leading-relaxed">
-          Cada carga actualiza lo existente y agrega lo nuevo.
-        </p>
-      </div>
+      {sesion && (
+        <div className="px-4 py-4 border-t border-white/10">
+          <div className="hidden md:block">
+            <p className="text-xs font-medium truncate" title={sesion.email}>
+              {sesion.nombre}
+            </p>
+            <p className="text-[11px] text-white/50 mt-0.5">
+              {sesion.rol === 'admin' ? 'Administradora' : 'Operadora'}
+            </p>
+          </div>
+          <button
+            onClick={salir}
+            className="mt-2.5 text-[11px] text-white/60 hover:text-white transition-colors"
+          >
+            <span className="md:hidden">⏻</span>
+            <span className="hidden md:inline">Cerrar sesión</span>
+          </button>
+        </div>
+      )}
     </nav>
   );
 }
