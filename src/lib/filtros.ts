@@ -101,3 +101,27 @@ export function mesesEntre(desde: string, hasta: string): string[] {
   }
   return salida;
 }
+
+
+/**
+ * Depósitos que se consideran costo de garantía.
+ *
+ * El reporte de compras trae todos los depósitos (convencional, camiones,
+ * garantía). Para el panel solo interesan los de garantía, porque son los que
+ * se comparan contra los reclamos facturados; sumar el resto compara peras con
+ * manzanas y da un resultado negativo irreal.
+ *
+ * Se comparan normalizados, así que "GARANTIA A", "Garantía B" y "GARANTIAS"
+ * entran todos. Si en tu instalación el depósito se llama distinto, agregá el
+ * término acá.
+ */
+export const PATRONES_GARANTIA = ['garantia'];
+
+export function esDepositoDeGarantia(deposito: string | null | undefined): boolean {
+  if (!deposito) return false;
+  const limpio = deposito
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return PATRONES_GARANTIA.some((p) => limpio.includes(p));
+}
