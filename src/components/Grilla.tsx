@@ -120,7 +120,11 @@ export default function Grilla({
                       className={`px-3 py-2.5 whitespace-nowrap ${
                         c.editable === false ? '' : 'cursor-text'
                       } ${c.tipo === 'moneda' || c.tipo === 'entero' ? 'text-right' : 'text-left'} ${
-                        esMono(c) ? 'font-mono text-xs tabular text-tinta-suave' : 'text-tinta-suave'
+                        // Todas las celdas comparten tamaño; solo cambia la familia
+                        // en códigos e importes, para que las cifras se alineen.
+                        esMono(c)
+                          ? 'font-mono text-xs tabular text-tinta-suave'
+                          : 'text-xs text-tinta-suave'
                       }`}
                       style={c.ancho ? { maxWidth: c.ancho } : undefined}
                     >
