@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Filtros, { EstadoFiltros, aQuery, filtrosVacios, useDimensiones } from '@/components/Filtros';
 import BarrasFinas from '@/components/BarrasFinas';
 import BarrasPorAnio from '@/components/BarrasPorAnio';
+import TablaPorAnio, { type Medida } from '@/components/TablaPorAnio';
 import Kpi from '@/components/Kpi';
 import { fmtMes, fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
@@ -42,6 +43,7 @@ export default function Informes() {
   const [alcance, setAlcance] = useState<Alcance>('ambos');
   const [agrupacion, setAgrupacion] = useState<Agrupacion>('mes');
   const [comparar, setComparar] = useState(true);
+  const [medida, setMedida] = useState<Medida>('ingresos');
   const [datos, setDatos] = useState<Informe | null>(null);
   const [cargando, setCargando] = useState(false);
   const dimensiones = useDimensiones();
@@ -96,6 +98,19 @@ export default function Informes() {
   const temporal = agrupacion === 'mes';
   // Comparar años solo tiene sentido si hay más de uno cargado.
   const aniosEnSerie = new Set((datos?.filas ?? []).map((f) => f.clave.slice(0, 4))).size;
+
+  const medidasDisponibles: Medida[] = [
+    ...(verIngresos ? (['ingresos', 'ordenes'] as Medida[]) : []),
+    ...(verEgresos ? (['egresos', 'unidades'] as Medida[]) : []),
+    ...(alcance === 'ambos' ? (['resultado'] as Medida[]) : []),
+  ];
+
+  // Al cambiar el alcance, la medida elegida puede dejar de existir.
+  useEffect(() => {
+    if (!medidasDisponibles.includes(medida) && medidasDisponibles.length > 0) {
+      setMedida(medidasDisponibles[0]);
+    }
+  }, [alcance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
@@ -236,6 +251,15 @@ export default function Informes() {
             />
           )}
         </section>
+      )}
+
+      {temporal && comparar && aniosEnSerie > 1 && medidasDisponibles.length > 0 && (
+        <TablaPorAnio
+          filas={datos?.filas ?? []}
+          medida={medida}
+          onMedida={setMedida}
+          medidasDisponibles={medidasDisponibles}
+        />
       )}
 
       <section className="tarjeta overflow-x-auto">
