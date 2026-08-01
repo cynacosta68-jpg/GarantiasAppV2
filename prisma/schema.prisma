@@ -90,6 +90,13 @@ model Carga {
   filasActual  Int        @default(0)
   filasError   Int        @default(0)
   columnas     Json?
+
+  /// Estado anterior de las filas que esta carga tocó, para poder deshacerla.
+  /// { creadas: string[], modificadas: Record<string, unknown>[] }
+  respaldo     Json?
+  deshecha     Boolean    @default(false)
+  deshechaEn   DateTime?
+
   createdAt    DateTime   @default(now())
 
   reclamos     Reclamo[]
