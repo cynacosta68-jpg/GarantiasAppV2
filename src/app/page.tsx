@@ -7,6 +7,7 @@ import BarrasHorizontales from '@/components/BarrasHorizontales';
 import Kpi from '@/components/Kpi';
 import CargaExcel from '@/components/CargaExcel';
 import HistorialCargas from '@/components/HistorialCargas';
+import VaciarDatos from '@/components/VaciarDatos';
 import { fmtMoneda, fmtNumero } from '@/lib/format';
 
 type Metricas = {
@@ -14,6 +15,7 @@ type Metricas = {
   kpis: {
     ordenes: number; importe: number; pendientes: number; importePendiente: number;
     ticketPromedio: number; costoGarantia: number; unidadesRepuestos: number;
+    costoOtrosDepositos: number; lineasOtrosDepositos: number;
     lineasRepuestos: number; margen: number;
   };
   serieIngresos: { periodo: string; cantidad: number; importe: number; importeFacturado: number }[];
@@ -53,6 +55,7 @@ export default function Panel() {
           <span className="text-tinta-suave font-medium">Informes</span>.
         </p>
         <div className="flex flex-wrap items-start gap-2">
+          <VaciarDatos onVaciado={traer} />
           <HistorialCargas onCambio={traer} />
           <CargaExcel endpoint="/api/cargas" etiqueta="Cargar reclamos" onCargado={traer} />
           <CargaExcel endpoint="/api/cargas-repuestos" etiqueta="Cargar repuestos" onCargado={traer} />
@@ -124,7 +127,10 @@ export default function Panel() {
         </section>
 
         <section className="tarjeta p-5">
-          <p className="rotulo mb-4">Costo por depósito</p>
+          <p className="rotulo mb-1">Costo por depósito</p>
+          <p className="text-[11px] text-tinta-tenue mb-3">
+            Todos los depósitos del reporte de compras. El indicador de arriba cuenta solo garantía.
+          </p>
           <div className="pt-2">
             <BarrasHorizontales datos={datos?.porDeposito ?? []} color="#D91F26" />
           </div>
