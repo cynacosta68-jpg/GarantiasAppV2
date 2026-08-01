@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { claveMes, leerFiltros, mesesDelAnio, whereReclamos, whereRepuestos } from '@/lib/filtros';
+import {
+  claveMes, esDepositoDeGarantia, leerFiltros, mesesDelAnio,
+  whereReclamos, whereRepuestos,
+} from '@/lib/filtros';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -77,10 +80,14 @@ export async function GET(req: NextRequest) {
   const egresos: Record<string, { periodo: string; costo: number; lineas: number; unidades: number }> =
     Object.fromEntries(etiquetas.map((p) => [p, { periodo: p, costo: 0, lineas: 0, unidades: 0 }]));
 
+  // El panel expone solo el costo de garantía: las compras de otros depósitos
+  // no se comparan contra los reclamos facturados.
+  const filasGarantia = filasEgreso.filter((f: any) => esDepositoDeGarantia(f.deposito));
+
   let costoGarantia = 0;
   let unidades = 0;
 
-  for (const f of filasEgreso) {
+  for (const f of filasGarantia) {
     const k = f.fecha ? claveMes(f.fecha) : f.periodo;
     const c = Number(f.costoTotal);
     costoGarantia += c;
@@ -89,6 +96,11 @@ export async function GET(req: NextRequest) {
     if (!p) continue;
     p.costo += c; p.lineas++; p.unidades += f.cantidad;
   }
+
+  // Cuánto de lo cargado queda fuera del panel, para poder explicarlo en pantalla.
+  const costoOtrosDepositos = filasEgreso
+    .filter((f: any) => !esDepositoDeGarantia(f.deposito))
+    .reduce((acc: number, f: any) => acc + Number(f.costoTotal), 0);
 
   const importe = Number(sumaOrdenes._sum.valor ?? 0);
 
@@ -102,8 +114,10 @@ export async function GET(req: NextRequest) {
       ticketPromedio: ordenes ? importe / ordenes : 0,
       costoGarantia,
       unidadesRepuestos: unidades,
-      lineasRepuestos: filasEgreso.length,
+      lineasRepuestos: filasGarantia.length,
       margen: importe - costoGarantia,
+      costoOtrosDepositos,
+      lineasOtrosDepositos: filasEgreso.length - filasGarantia.length,
     },
     serieIngresos: etiquetas.map((p) => ingresos[p]),
     serieEgresos: etiquetas.map((p) => egresos[p]),
