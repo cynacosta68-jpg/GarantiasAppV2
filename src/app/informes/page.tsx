@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Filtros, { EstadoFiltros, aQuery, filtrosVacios, useDimensiones } from '@/components/Filtros';
 import BarrasFinas from '@/components/BarrasFinas';
+import BarrasPorAnio from '@/components/BarrasPorAnio';
 import Kpi from '@/components/Kpi';
 import { fmtMes, fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
@@ -40,6 +41,7 @@ export default function Informes() {
   const [filtros, setFiltros] = useState<EstadoFiltros>(filtrosVacios);
   const [alcance, setAlcance] = useState<Alcance>('ambos');
   const [agrupacion, setAgrupacion] = useState<Agrupacion>('mes');
+  const [comparar, setComparar] = useState(true);
   const [datos, setDatos] = useState<Informe | null>(null);
   const [cargando, setCargando] = useState(false);
   const dimensiones = useDimensiones();
@@ -92,6 +94,8 @@ export default function Informes() {
 
   const t = datos?.totales;
   const temporal = agrupacion === 'mes';
+  // Comparar años solo tiene sentido si hay más de uno cargado.
+  const aniosEnSerie = new Set((datos?.filas ?? []).map((f) => f.clave.slice(0, 4))).size;
 
   return (
     <div className="space-y-4">
@@ -174,23 +178,63 @@ export default function Informes() {
         )}
       </div>
 
+      {temporal && (verIngresos || verEgresos) && aniosEnSerie > 1 && (
+        <div className="flex items-center gap-2 justify-end">
+          <span className="rotulo">Ver como</span>
+          <div className="flex border border-borde rounded overflow-hidden bg-white">
+            <button
+              onClick={() => setComparar(true)}
+              className={`px-3 py-1.5 text-xs ${comparar ? 'bg-azure text-white font-medium' : 'text-tinta-tenue hover:text-tinta-suave'}`}
+            >
+              Comparar años
+            </button>
+            <button
+              onClick={() => setComparar(false)}
+              className={`px-3 py-1.5 text-xs ${!comparar ? 'bg-azure text-white font-medium' : 'text-tinta-tenue hover:text-tinta-suave'}`}
+            >
+              Serie corrida
+            </button>
+          </div>
+        </div>
+      )}
+
       {temporal && verIngresos && (
         <section className="tarjeta p-5">
-          <p className="rotulo mb-4">Ingresos por mes</p>
-          <BarrasFinas
-            datos={(datos?.filas ?? []).map((f) => ({ periodo: f.clave, valor: f.ingresos, cantidad: f.ordenes, nota: 'órdenes' }))}
-            color="#2B5CE6"
-          />
+          <p className="rotulo mb-4">
+            {comparar && aniosEnSerie > 1 ? 'Ingresos · mismo mes entre años' : 'Ingresos por mes'}
+          </p>
+          {comparar && aniosEnSerie > 1 ? (
+            <BarrasPorAnio
+              datos={(datos?.filas ?? []).map((f) => ({ periodo: f.clave, valor: f.ingresos, cantidad: f.ordenes }))}
+              paleta="ingresos"
+              nota="órdenes"
+            />
+          ) : (
+            <BarrasFinas
+              datos={(datos?.filas ?? []).map((f) => ({ periodo: f.clave, valor: f.ingresos, cantidad: f.ordenes, nota: 'órdenes' }))}
+              color="#2B5CE6"
+            />
+          )}
         </section>
       )}
 
       {temporal && verEgresos && (
         <section className="tarjeta p-5">
-          <p className="rotulo mb-4">Egresos por mes</p>
-          <BarrasFinas
-            datos={(datos?.filas ?? []).map((f) => ({ periodo: f.clave, valor: f.egresos, cantidad: f.unidades, nota: 'unidades' }))}
-            color="#D91F26"
-          />
+          <p className="rotulo mb-4">
+            {comparar && aniosEnSerie > 1 ? 'Egresos · mismo mes entre años' : 'Egresos por mes'}
+          </p>
+          {comparar && aniosEnSerie > 1 ? (
+            <BarrasPorAnio
+              datos={(datos?.filas ?? []).map((f) => ({ periodo: f.clave, valor: f.egresos, cantidad: f.unidades }))}
+              paleta="egresos"
+              nota="unidades"
+            />
+          ) : (
+            <BarrasFinas
+              datos={(datos?.filas ?? []).map((f) => ({ periodo: f.clave, valor: f.egresos, cantidad: f.unidades, nota: 'unidades' }))}
+              color="#D91F26"
+            />
+          )}
         </section>
       )}
 
