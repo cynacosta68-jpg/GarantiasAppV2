@@ -98,6 +98,38 @@ resumen de la carga informa cuántas se conservaron por ese motivo.
 
 ---
 
+## Importar y deshacer
+
+Toda importación pasa por dos etapas.
+
+**1. Revisión.** Al elegir el archivo, la app lo lee y lo compara contra lo ya guardado sin escribir
+nada. Muestra cuántas filas son nuevas, cuántas ya están cargadas idénticas, cuántas vienen con
+datos distintos y cuántas están protegidas por edición manual. Si hay diferencias, lista ejemplos
+concretos con el valor anterior y el nuevo.
+
+**2. Decisión.** Desde ahí elegís: importar todo (agrega las nuevas y actualiza las que cambiaron),
+importar solo las nuevas, o cancelar. Las filas idénticas nunca se reimportan, así que volver a
+subir el mismo archivo no duplica ni pisa nada.
+
+La comparación redondea los importes a los decimales que usa cada columna en la base. Sin eso el
+archivo traería `920.6139999`, la base tendría `920.61` y todas las filas parecerían distintas.
+
+### Deshacer
+
+Cada importación guarda el estado anterior de las filas que tocó. Se revierte desde el botón que
+aparece al terminar la carga, o desde **Historial de cargas**, disponible en Panel, Reclamos y
+Repuestos.
+
+Deshacer borra las filas que la carga agregó y devuelve las modificadas a su valor previo. Las filas
+que alguien editó a mano después de esa importación no se tocan, y el resultado informa cuántas
+quedaron así.
+
+Dos límites: una carga de más de 20.000 filas no guarda respaldo y queda marcada como no reversible
+(`TOPE_RESPALDO` en `src/lib/consolidar.ts`), y una carga ya deshecha no se puede volver a aplicar
+—hay que subir el archivo de nuevo.
+
+---
+
 ## Marca
 
 El isotipo vive en `public/logo-ford.png` y se muestra en tres lugares a través de
