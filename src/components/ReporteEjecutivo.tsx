@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { analizar, type Severidad } from '@/lib/analisis';
 import type { FilaInforme } from '@/components/TablaPorAnio';
 import BarrasPorAnio from '@/components/BarrasPorAnio';
+import { compartir, descargar, generarPdf } from '@/lib/pdf';
 import { fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -32,7 +33,17 @@ export default function ReporteEjecutivo({
   filtros: { desde: string; hasta: string; sucursales: string[]; depositos: string[] };
 }) {
   const [abierto, setAbierto] = useState(false);
+  const [exportando, setExportando] = useState<'pdf' | 'correo' | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const documento = useRef<HTMLDivElement>(null);
   const analisis = useMemo(() => analizar(filas, alcance), [filas, alcance]);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setAbierto(false);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [abierto]);
 
   const conMovimiento = filas
     .filter((f) => f.ingresos !== 0 || f.egresos !== 0)
@@ -105,9 +116,55 @@ export default function ReporteEjecutivo({
     return lineas.join('\n');
   };
 
-  const enviarPorCorreo = () => {
-    const asunto = `Informe de garantías · ${rango}`;
+  const nombreArchivo = `Informe_garantias_${rango.replace(/[^0-9]/g, '_')}.pdf`;
+  const asunto = `Informe de garantías · ${rango}`;
+
+  /** Construye el PDF a partir del nodo que se está viendo. */
+  const construir = async (): Promise<Blob | null> => {
+    if (!documento.current) return null;
+    try {
+      return await generarPdf(documento.current);
+    } catch (e) {
+      setAviso(`No se pudo armar el PDF: ${(e as Error).message}`);
+      return null;
+    }
+  };
+
+  const guardarPdf = async () => {
+    setExportando('pdf');
+    setAviso(null);
+    const blob = await construir();
+    if (blob) descargar(blob, nombreArchivo);
+    setExportando(null);
+  };
+
+  /**
+   * Adjuntar un archivo a un correo solo es posible a través del diálogo de
+   * compartir del sistema. Si el navegador no lo admite, se descarga el PDF y
+   * se abre el correo con el resumen, para adjuntarlo a mano.
+   */
+  const enviarPorCorreo = async () => {
+    setExportando('correo');
+    setAviso(null);
+
+    const blob = await construir();
+    if (!blob) {
+      setExportando(null);
+      return;
+    }
+
+    const compartido = await compartir(blob, nombreArchivo, asunto);
+    if (compartido) {
+      setExportando(null);
+      return;
+    }
+
+    descargar(blob, nombreArchivo);
+    setAviso(
+      `Tu navegador no permite adjuntar archivos al correo directamente. Descargamos ${nombreArchivo} y abrimos el correo con el resumen: adjuntá el archivo desde tu carpeta de descargas.`,
+    );
     window.location.href = `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpoCorreo())}`;
+    setExportando(null);
   };
 
   return (
@@ -120,9 +177,20 @@ export default function ReporteEjecutivo({
       </button>
 
       {abierto && (
-        <div className="fixed inset-0 z-50 bg-tinta/40 overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-tinta/40 overflow-y-auto"
+          onClick={() => setAbierto(false)}
+          role="dialog"
+          aria-modal="true"
+        >
           {/* Barra de acciones: fuera del documento imprimible */}
-          <div className="no-imprimir sticky top-0 z-10 bg-white border-b border-borde px-4 py-3 flex flex-wrap gap-2 justify-end">
+          <div
+            className="sticky top-0 z-10 bg-white border-b border-borde px-4 py-3 flex flex-wrap gap-2 justify-end items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-xs text-tinta-tenue mr-auto hidden sm:block">
+              Hacé clic fuera del documento para cerrarlo.
+            </span>
             <button
               onClick={() => setAbierto(false)}
               className="px-3 py-2 text-xs rounded border border-borde text-tinta-suave hover:text-tinta"
@@ -131,21 +199,33 @@ export default function ReporteEjecutivo({
             </button>
             <button
               onClick={enviarPorCorreo}
-              className="px-3 py-2 text-xs rounded border border-azure text-azure hover:bg-azure/[.07]"
+              disabled={exportando !== null}
+              className="px-3 py-2 text-xs rounded border border-azure text-azure hover:bg-azure/[.07] disabled:opacity-50"
             >
-              Enviar por correo
+              {exportando === 'correo' ? 'Preparando…' : 'Enviar por correo'}
             </button>
             <button
-              onClick={() => window.print()}
-              className="px-3 py-2 text-xs rounded bg-azure text-white font-medium hover:bg-[#2450CC]"
+              onClick={guardarPdf}
+              disabled={exportando !== null}
+              className="px-3 py-2 text-xs rounded bg-azure text-white font-medium hover:bg-[#2450CC] disabled:opacity-50"
             >
-              Guardar como PDF
+              {exportando === 'pdf' ? 'Armando el PDF…' : 'Descargar PDF'}
             </button>
           </div>
 
+          {aviso && (
+            <div
+              className="mx-auto mt-4 max-w-[820px] rounded border border-borde bg-white px-4 py-3 text-xs text-tinta-suave"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {aviso}
+            </div>
+          )}
+
           <div
-            id="reporte-imprimible"
+            ref={documento}
             className="mx-auto my-6 max-w-[820px] bg-white p-10 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Encabezado */}
             <header className="flex items-start justify-between gap-6 pb-5 border-b-2 border-navy">
