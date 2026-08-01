@@ -48,39 +48,11 @@ body {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
-
-/* El reporte ejecutivo se guarda como PDF desde el diálogo de impresión.
-   Al imprimir hay que sacar de la página TODO lo que no es el documento:
-   el modal vive sobre la pantalla, así que sin esto el PDF arrastra el
-   encabezado, los filtros y las tablas que están detrás. */
+/* El reporte ejecutivo se exporta con jsPDF, no con el diálogo de impresión:
+   así el archivo sale idéntico a la vista previa. Igual se deja una regla
+   mínima por si alguien imprime la página con Ctrl+P. */
 @media print {
   @page { margin: 12mm; size: A4; }
-
-  html, body {
-    background: #fff !important;
-    height: auto !important;
-  }
-
-  /* Se oculta el árbol completo y después se reexpone solo el reporte. */
-  body * { visibility: hidden !important; }
-
-  #reporte-imprimible,
-  #reporte-imprimible * { visibility: visible !important; }
-
-  #reporte-imprimible {
-    position: absolute !important;
-    inset: 0 auto auto 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-  }
-
-  .no-imprimir { display: none !important; }
-
-  .break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-
-  .tarjeta { box-shadow: none !important; }
+  body { background: #fff; }
+  .tarjeta { box-shadow: none; }
 }
