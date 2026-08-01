@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { analizar, type Severidad } from '@/lib/analisis';
-import type { FilaInforme, Medida } from '@/components/TablaPorAnio';
+import type { FilaInforme } from '@/components/TablaPorAnio';
+import BarrasPorAnio from '@/components/BarrasPorAnio';
 import { fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -50,8 +51,23 @@ export default function ReporteEjecutivo({
     { ingresos: 0, egresos: 0, ordenes: 0, pendiente: 0, unidades: 0 },
   );
 
-  const celda = (mes: number, anio: string, campo: 'ingresos' | 'egresos') =>
-    conMovimiento.find((f) => f.clave === `${anio}-${String(mes + 1).padStart(2, '0')}`)?.[campo] ?? null;
+  // Qué magnitud se tabula: egresos si el informe es solo de egresos, si no ingresos.
+  const campoTabla: 'ingresos' | 'egresos' = alcance === 'egresos' ? 'egresos' : 'ingresos';
+
+  const valorMes = (mes: number, anio: string): number | null =>
+    conMovimiento.find((f) => f.clave === `${anio}-${String(mes + 1).padStart(2, '0')}`)?.[campoTabla] ??
+    null;
+
+  const totalAnio = (anio: string): number =>
+    conMovimiento.filter((f) => f.clave.startsWith(anio)).reduce((s, f) => s + f[campoTabla], 0);
+
+  /** Variación porcentual contra el año anterior; null si no hay con qué comparar. */
+  const variacion = (actual: number | null, previo: number | null): number | null =>
+    actual === null || previo === null || previo === 0
+      ? null
+      : ((actual - previo) / Math.abs(previo)) * 100;
+
+  const columnasDelta = anios.slice(1);
 
   const emitido = new Intl.DateTimeFormat('es-AR', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -104,9 +120,9 @@ export default function ReporteEjecutivo({
       </button>
 
       {abierto && (
-        <div className="fixed inset-0 z-50 bg-tinta/40 overflow-y-auto print:bg-white print:static print:overflow-visible">
-          {/* Barra de acciones: no se imprime */}
-          <div className="sticky top-0 z-10 bg-white border-b border-borde px-4 py-3 flex flex-wrap gap-2 justify-end print:hidden">
+        <div className="fixed inset-0 z-50 bg-tinta/40 overflow-y-auto">
+          {/* Barra de acciones: fuera del documento imprimible */}
+          <div className="no-imprimir sticky top-0 z-10 bg-white border-b border-borde px-4 py-3 flex flex-wrap gap-2 justify-end">
             <button
               onClick={() => setAbierto(false)}
               className="px-3 py-2 text-xs rounded border border-borde text-tinta-suave hover:text-tinta"
@@ -127,7 +143,10 @@ export default function ReporteEjecutivo({
             </button>
           </div>
 
-          <div className="mx-auto my-6 max-w-[820px] bg-white p-10 shadow-lg print:my-0 print:max-w-none print:p-0 print:shadow-none">
+          <div
+            id="reporte-imprimible"
+            className="mx-auto my-6 max-w-[820px] bg-white p-10 shadow-lg"
+          >
             {/* Encabezado */}
             <header className="flex items-start justify-between gap-6 pb-5 border-b-2 border-navy">
               <div>
@@ -220,7 +239,25 @@ export default function ReporteEjecutivo({
               </div>
             </section>
 
-            {/* Detalle mensual */}
+            {/* Evolución: el mismo gráfico que se ve en pantalla */}
+            {conMovimiento.length > 0 && anios.length > 0 && (
+              <section className="mt-7 break-inside-avoid">
+                <h2 className="text-[10px] uppercase tracking-[0.18em] text-tinta-tenue font-semibold mb-3">
+                  Evolución mensual comparada
+                </h2>
+                <BarrasPorAnio
+                  datos={conMovimiento.map((f) => ({
+                    periodo: f.clave,
+                    valor: alcance === 'egresos' ? f.egresos : f.ingresos,
+                    cantidad: alcance === 'egresos' ? f.unidades : f.ordenes,
+                  }))}
+                  paleta={alcance === 'egresos' ? 'egresos' : 'ingresos'}
+                  nota={alcance === 'egresos' ? 'unidades' : 'órdenes'}
+                />
+              </section>
+            )}
+
+            {/* Detalle mensual con variación interanual */}
             {conMovimiento.length > 0 && (
               <section className="mt-7 break-inside-avoid">
                 <h2 className="text-[10px] uppercase tracking-[0.18em] text-tinta-tenue font-semibold mb-3">
@@ -229,49 +266,87 @@ export default function ReporteEjecutivo({
                 <table className="w-full text-[11px] border-collapse">
                   <thead>
                     <tr className="border-b-2 border-tinta">
-                      <th className="text-left py-1.5 font-semibold text-tinta">Mes</th>
+                      <th className="text-left py-1.5 font-semibold text-tinta w-[16%]">Mes</th>
                       {anios.map((a) => (
-                        <th key={a} className="text-right py-1.5 font-semibold text-tinta">
-                          {a} · ingresos
+                        <th key={a} className="text-center py-1.5 font-semibold text-tinta">
+                          {a}
                         </th>
                       ))}
-                      {alcance !== 'ingresos' &&
-                        anios.map((a) => (
-                          <th key={`e-${a}`} className="text-right py-1.5 font-semibold text-rojo">
-                            {a} · costo
-                          </th>
-                        ))}
+                      {columnasDelta.map((a) => (
+                        <th key={`v-${a}`} className="text-center py-1.5 font-semibold text-tinta">
+                          Var. {a.slice(2)}/{String(Number(a) - 1).slice(2)}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {MESES.map((etiqueta, mes) => {
-                      const hay = anios.some(
-                        (a) => celda(mes, a, 'ingresos') !== null || celda(mes, a, 'egresos') !== null,
-                      );
+                      const hay = anios.some((a) => valorMes(mes, a) !== null);
                       if (!hay) return null;
+
                       return (
                         <tr key={etiqueta} className="border-b border-borde">
                           <td className="py-1.5 capitalize text-tinta">{etiqueta}</td>
+
                           {anios.map((a) => (
-                            <td key={a} className="text-right py-1.5 tabular text-tinta-suave">
-                              {celda(mes, a, 'ingresos') !== null
-                                ? fmtMonedaExacta.format(celda(mes, a, 'ingresos')!)
+                            <td
+                              key={a}
+                              className="text-center py-1.5 tabular"
+                              style={{ color: alcance === 'egresos' ? '#D91F26' : '#41506F' }}
+                            >
+                              {valorMes(mes, a) !== null
+                                ? fmtMonedaExacta.format(valorMes(mes, a)!)
                                 : '—'}
                             </td>
                           ))}
-                          {alcance !== 'ingresos' &&
-                            anios.map((a) => (
-                              <td key={`e-${a}`} className="text-right py-1.5 tabular text-rojo">
-                                {celda(mes, a, 'egresos') !== null
-                                  ? fmtMonedaExacta.format(celda(mes, a, 'egresos')!)
-                                  : '—'}
+
+                          {columnasDelta.map((a) => {
+                            const v = variacion(valorMes(mes, a), valorMes(mes, String(Number(a) - 1)));
+                            return (
+                              <td
+                                key={`v-${a}`}
+                                className="text-center py-1.5 tabular font-semibold"
+                                style={{ color: v === null ? '#7788A6' : v < 0 ? '#D91F26' : '#2B5CE6' }}
+                              >
+                                {v === null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`}
                               </td>
-                            ))}
+                            );
+                          })}
                         </tr>
                       );
                     })}
                   </tbody>
+
+                  <tfoot>
+                    <tr className="border-t-2 border-tinta font-semibold">
+                      <td className="py-2 text-tinta">Total</td>
+                      {anios.map((a) => (
+                        <td key={a} className="text-center py-2 tabular text-tinta">
+                          {fmtMonedaExacta.format(totalAnio(a))}
+                        </td>
+                      ))}
+                      {columnasDelta.map((a) => {
+                        const v = variacion(totalAnio(a), totalAnio(String(Number(a) - 1)));
+                        return (
+                          <td
+                            key={`v-${a}`}
+                            className="text-center py-2 tabular"
+                            style={{ color: v === null ? '#7788A6' : v < 0 ? '#D91F26' : '#2B5CE6' }}
+                          >
+                            {v === null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
                 </table>
+
+                {columnasDelta.length > 0 && (
+                  <p className="text-[10px] text-tinta-tenue mt-2">
+                    La variación compara cada mes contra el mismo mes del año anterior. Los meses sin
+                    dato en alguno de los dos ejercicios no admiten comparación.
+                  </p>
+                )}
               </section>
             )}
 
