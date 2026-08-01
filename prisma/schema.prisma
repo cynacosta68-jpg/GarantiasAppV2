@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// INGRESOS · una fila del reporte mensual de reclamos.
+model Reclamo {
+  id            String    @id @default(cuid())
+
+  fechaR        DateTime?
+  reclamo       String
+  orden         String
+  cliente       String?
+  modelo        String?
+  patente       String?
+  cargo         String?
+  fechaFc       DateTime?
+  valor         Decimal   @default(0) @db.Decimal(16, 2)
+  comprobante   String?
+  sucursal      String?
+
+  datosExtra    Json?
+
+  claveUnica    String    @unique
+  periodo       String
+  cargaId       String?
+  carga         Carga?    @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  editadoManual Boolean   @default(false)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([fechaR])
+  @@index([fechaFc])
+  @@index([sucursal])
+  @@index([orden])
+  @@index([periodo])
+}
+
+/// EGRESOS · una línea del reporte de compras de repuestos de garantía.
+model Repuesto {
+  id              String    @id @default(cuid())
+
+  fecha           DateTime?
+  repuesto        String
+  descripcion     String?
+  proveedor       String?
+  deposito        String?
+  documento       String?
+  pedido          String?
+  cantidad        Int       @default(0)
+  costo           Decimal   @default(0) @db.Decimal(16, 4)
+  descuento       Decimal   @default(0) @db.Decimal(16, 4)
+  costoNeto       Decimal   @default(0) @db.Decimal(16, 4)
+  costoTotal      Decimal   @default(0) @db.Decimal(16, 2)
+  costoLista      Decimal   @default(0) @db.Decimal(16, 4)
+  costoListaTotal Decimal   @default(0) @db.Decimal(16, 2)
+  ahorro          Decimal   @default(0) @db.Decimal(16, 2)
+  ahorroPct       Float     @default(0)
+
+  datosExtra      Json?
+
+  claveUnica      String    @unique
+  periodo         String
+  cargaId         String?
+  carga           Carga?    @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  editadoManual   Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([fecha])
+  @@index([deposito])
+  @@index([repuesto])
+  @@index([documento])
+  @@index([periodo])
+}
+
+model Carga {
+  id           String     @id @default(cuid())
+  tipo         String     @default("reclamos") // "reclamos" | "repuestos"
+  archivo      String
+  periodo      String
+  filasLeidas  Int        @default(0)
+  filasNuevas  Int        @default(0)
+  filasActual  Int        @default(0)
+  filasError   Int        @default(0)
+  columnas     Json?
+  createdAt    DateTime   @default(now())
+
+  reclamos     Reclamo[]
+  repuestos    Repuesto[]
+
+  @@index([periodo])
+  @@index([tipo])
+}
+
+/// Cuenta de acceso a la app. Sin usuarios, la pantalla de ingreso ofrece
+/// crear la primera cuenta; después de eso el alta se hace por CLI.
+model Usuario {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  nombre       String
+  rol          String   @default("operador") // "admin" | "operador"
+  passwordHash String
+  activo       Boolean  @default(true)
+  ultimoAcceso DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
