@@ -19,11 +19,14 @@ export default function BarrasFinas({
   color = '#2B5CE6',
   unidadEje = 'en millones de pesos',
   mostrarCantidad = true,
+  tendencia = false,
 }: {
   datos: Barra[];
   color?: string;
   unidadEje?: string;
   mostrarCantidad?: boolean;
+  /** Recta punteada de tendencia sobre el tramo con datos. */
+  tendencia?: boolean;
 }) {
   const [activo, setActivo] = useState<number | null>(null);
 
@@ -45,6 +48,47 @@ export default function BarrasFinas({
   const topeEje = Math.ceil(escalaMillones / pasoEje) * pasoEje || 1;
   const marcas = Array.from({ length: topeEje / pasoEje + 1 }, (_, i) => i * pasoEje);
   const y = (millones: number) => padSup + areaAlto - (millones / topeEje) * areaAlto;
+
+  /**
+   * Recta de mínimos cuadrados sobre el tramo que tiene datos.
+   *
+   * Los meses vacíos del principio y del final quedan afuera del cálculo: un
+   * mes que todavía no se cargó no es un mes en cero y arrastraría la
+   * pendiente. Un cero en el medio sí cuenta, porque ahí sí hubo período.
+   */
+  const recta = (() => {
+    if (!tendencia) return null;
+
+    const primero = datos.findIndex((d) => d.valor > 0);
+    if (primero === -1) return null;
+
+    let ultimo = datos.length - 1;
+    while (ultimo > primero && datos[ultimo].valor <= 0) ultimo--;
+    if (ultimo - primero < 1) return null;
+
+    let n = 0, sx = 0, sy = 0, sxy = 0, sxx = 0;
+    for (let i = primero; i <= ultimo; i++) {
+      const v = datos[i].valor / 1_000_000;
+      n++; sx += i; sy += v; sxy += i * v; sxx += i * i;
+    }
+
+    const denominador = n * sxx - sx * sx;
+    if (denominador === 0) return null;
+
+    const pendiente = (n * sxy - sx * sy) / denominador;
+    const ordenada = (sy - pendiente * sx) / n;
+
+    // Se recorta al área del gráfico: una pendiente fuerte se saldría del marco.
+    const acotar = (millones: number) =>
+      Math.min(padSup + areaAlto, Math.max(padSup, y(millones)));
+
+    return {
+      x1: padIzq + paso * primero + paso / 2,
+      y1: acotar(ordenada + pendiente * primero),
+      x2: padIzq + paso * ultimo + paso / 2,
+      y2: acotar(ordenada + pendiente * ultimo),
+    };
+  })();
 
   return (
     <div className="relative">
@@ -68,6 +112,20 @@ export default function BarrasFinas({
             </text>
           </g>
         ))}
+
+        {recta && (
+          <line
+            x1={recta.x1}
+            y1={recta.y1}
+            x2={recta.x2}
+            y2={recta.y2}
+            stroke={color}
+            strokeWidth={1.5}
+            strokeDasharray="6 5"
+            strokeLinecap="round"
+            opacity={0.5}
+          />
+        )}
 
         {datos.map((d, i) => {
           const cx = padIzq + paso * i + paso / 2;

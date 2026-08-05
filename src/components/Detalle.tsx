@@ -14,12 +14,14 @@ export type ConfigDetalle = {
 };
 
 export default function Detalle({
-  id, config, onCerrar, onCambio,
+  id, config, onCerrar, onCambio, soloLectura = false,
 }: {
   id: string;
   config: ConfigDetalle;
   onCerrar: () => void;
   onCambio: () => void;
+  /** Cuenta de consulta: el detalle se abre igual, sin editar ni eliminar. */
+  soloLectura?: boolean;
 }) {
   const [datos, setDatos] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export default function Detalle({
           </div>
 
           <div className="flex items-center gap-2">
-            {!editando ? (
+            {soloLectura ? null : !editando ? (
               <button onClick={() => setEditando(true)} className="px-3 py-1.5 text-xs rounded border border-borde text-tinta-suave hover:border-azure hover:text-azure">
                 Editar
               </button>
@@ -110,9 +112,11 @@ export default function Detalle({
                 </button>
               </>
             )}
-            <button onClick={eliminar} className="px-3 py-1.5 text-xs rounded border border-borde text-tinta-tenue hover:border-rojo hover:text-rojo">
-              Eliminar
-            </button>
+            {!soloLectura && (
+              <button onClick={eliminar} className="px-3 py-1.5 text-xs rounded border border-borde text-tinta-tenue hover:border-rojo hover:text-rojo">
+                Eliminar
+              </button>
+            )}
             <button onClick={onCerrar} className="px-3 py-1.5 text-xs rounded border border-borde text-tinta-tenue hover:text-tinta">
               Cerrar
             </button>

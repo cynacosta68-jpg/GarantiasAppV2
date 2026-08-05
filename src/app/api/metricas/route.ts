@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
   const [
     ordenes, pendientes, sumaOrdenes, sumaPendiente,
     filasIngreso, filasEgreso, porSucursal, porDeposito, porCargoCrudo,
+    porCargoSucursalCrudo, facturasCrudas,
   ] = await Promise.all([
     prisma.reclamo.count({ where: wIngresos }),
     prisma.reclamo.count({ where: { ...wIngresos, comprobante: null } }),
@@ -58,7 +59,38 @@ export async function GET(req: NextRequest) {
       _count: { _all: true }, _sum: { valor: true },
       orderBy: { _sum: { valor: 'desc' } },
     }),
+    // Cargos abiertos por sucursal: la torta del panel filtra sobre esto sin
+    // volver a pedirle nada al servidor.
+    prisma.reclamo.groupBy({
+      by: ['sucursal', 'cargo'], where: wIngresos,
+      _count: { _all: true }, _sum: { valor: true },
+    }),
+    // Últimas facturas emitidas. Se agrupa por comprobante porque una factura
+    // suele cubrir varias líneas de reclamo. Se exige fecha FC: sin ella no hay
+    // con qué ordenar, y una fila así no es una factura emitida.
+    prisma.reclamo.groupBy({
+      by: ['comprobante'],
+      where: { ...wIngresos, comprobante: { not: null }, fechaFc: { not: null } },
+      _count: { _all: true },
+      _sum: { valor: true },
+      _max: { fechaFc: true },
+      orderBy: { _max: { fechaFc: 'desc' } },
+      take: 5,
+    }),
   ]);
+
+  // Segunda pasada solo sobre esas cinco: el agrupado no puede traer cliente ni
+  // sucursal, que son lo que hace legible la lista.
+  const comprobantes = facturasCrudas
+    .map((f: any) => f.comprobante as string | null)
+    .filter((c: string | null): c is string => !!c);
+
+  const lineasFactura = comprobantes.length
+    ? await prisma.reclamo.findMany({
+        where: { ...wIngresos, comprobante: { in: comprobantes } },
+        select: { comprobante: true, cliente: true, sucursal: true, orden: true },
+      })
+    : [];
 
   const etiquetas = mesesDelAnio(anio);
 
@@ -145,6 +177,27 @@ export async function GET(req: NextRequest) {
         },
       ];
     })(),
+    // Sin agrupar en "Otros": la torta arma su propio corte según la sucursal
+    // que se elija, y agrupar acá le sacaría la cola que después necesita.
+    porCargoSucursal: porCargoSucursalCrudo.map((c: any) => ({
+      sucursal: c.sucursal ?? 'Sin asignar',
+      cargo: c.cargo ?? 'Sin cargo',
+      valor: Number(c._sum.valor ?? 0),
+      cantidad: c._count._all as number,
+    })),
+    ultimasFacturas: facturasCrudas.map((f: any) => {
+      const lineas = lineasFactura.filter((l: any) => l.comprobante === f.comprobante);
+      const ordenes = new Set(lineas.map((l: any) => l.orden));
+      return {
+        comprobante: f.comprobante as string,
+        fecha: f._max.fechaFc as Date | null,
+        importe: Number(f._sum.valor ?? 0),
+        lineas: f._count._all as number,
+        cliente: lineas.find((l: any) => l.cliente)?.cliente ?? null,
+        sucursal: lineas.find((l: any) => l.sucursal)?.sucursal ?? null,
+        ordenes: ordenes.size,
+      };
+    }),
     porSucursal: porSucursal.map((s) => ({
       etiqueta: s.sucursal ?? 'Sin asignar',
       cantidad: s._count._all,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { exigirEscritura } from '@/lib/permisos';
 import { periodoDesdeNombre } from '@/lib/excel';
 import { parsearRepuestos } from '@/lib/repuestos';
 import { enLotes, LOTE_CONSULTA, LOTE_ESCRITURA, resumirPeriodos } from '@/lib/lotes';
@@ -25,6 +26,9 @@ const RESPALDO = {
 
 export async function POST(req: NextRequest) {
   try {
+    const sesion = await exigirEscritura(req);
+    if (sesion instanceof NextResponse) return sesion;
+
     const token = process.env.UPLOAD_TOKEN;
     if (token && req.headers.get('x-upload-token') !== token) {
       return NextResponse.json({ error: 'Token de carga inválido.' }, { status: 401 });

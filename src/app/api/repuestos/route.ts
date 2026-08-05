@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { leerFiltros, whereRepuestos } from '@/lib/filtros';
+import { exigirEscritura } from '@/lib/permisos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const sesion = await exigirEscritura(req);
+  if (sesion instanceof NextResponse) return sesion;
+
   const { ids } = await req.json();
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'No hay filas seleccionadas.' }, { status: 400 });

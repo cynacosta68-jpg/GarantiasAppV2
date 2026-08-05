@@ -12,7 +12,7 @@ export type Columna = {
 };
 
 export default function Grilla({
-  columnas, filas, seleccion, onSeleccion, onAbrir, onEditar,
+  columnas, filas, seleccion, onSeleccion, onAbrir, onEditar, soloLectura = false,
 }: {
   columnas: Columna[];
   filas: Record<string, any>[];
@@ -20,6 +20,8 @@ export default function Grilla({
   onSeleccion: (ids: string[]) => void;
   onAbrir: (id: string) => void;
   onEditar: (id: string, campo: string, valor: string) => Promise<void>;
+  /** Cuenta de consulta: sin edición en celda y sin casillas de selección. */
+  soloLectura?: boolean;
 }) {
   const [celda, setCelda] = useState<{ id: string; campo: string } | null>(null);
   const [borrador, setBorrador] = useState('');
@@ -27,7 +29,7 @@ export default function Grilla({
   const todas = filas.length > 0 && seleccion.length === filas.length;
 
   const abrir = (fila: Record<string, any>, col: Columna) => {
-    if (col.editable === false) return;
+    if (soloLectura || col.editable === false) return;
     const v = fila[col.campo];
     setCelda({ id: fila.id, campo: col.campo });
     setBorrador(col.tipo === 'fecha' ? (v ? String(v).slice(0, 10) : '') : (v ?? ''));
@@ -65,15 +67,17 @@ export default function Grilla({
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="bg-[#F7F9FD] border-b border-borde">
-            <th className="w-10 px-3 py-3">
-              <input
-                type="checkbox"
-                checked={todas}
-                onChange={() => onSeleccion(todas ? [] : filas.map((f) => f.id))}
-                aria-label="Seleccionar todas las filas visibles"
-                className="accent-azure"
-              />
-            </th>
+            {!soloLectura && (
+              <th className="w-10 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={todas}
+                  onChange={() => onSeleccion(todas ? [] : filas.map((f) => f.id))}
+                  aria-label="Seleccionar todas las filas visibles"
+                  className="accent-azure"
+                />
+              </th>
+            )}
             {columnas.map((c) => (
               <th
                 key={c.campo}
@@ -97,19 +101,21 @@ export default function Grilla({
                 title="Doble clic para ver el detalle completo"
                 className={marcada ? 'bg-azure/[.06]' : 'hover:bg-[#F7F9FD] transition-colors'}
               >
-                <td className="px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={marcada}
-                    onChange={() =>
-                      onSeleccion(
-                        marcada ? seleccion.filter((x) => x !== fila.id) : [...seleccion, fila.id],
-                      )
-                    }
-                    aria-label="Seleccionar fila"
-                    className="accent-azure"
-                  />
-                </td>
+                {!soloLectura && (
+                  <td className="px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={marcada}
+                      onChange={() =>
+                        onSeleccion(
+                          marcada ? seleccion.filter((x) => x !== fila.id) : [...seleccion, fila.id],
+                        )
+                      }
+                      aria-label="Seleccionar fila"
+                      className="accent-azure"
+                    />
+                  </td>
+                )}
 
                 {columnas.map((c) => {
                   const editando = celda?.id === fila.id && celda?.campo === c.campo;
@@ -118,7 +124,7 @@ export default function Grilla({
                       key={c.campo}
                       onClick={() => !editando && abrir(fila, c)}
                       className={`px-3 py-2.5 whitespace-nowrap ${
-                        c.editable === false ? '' : 'cursor-text'
+                        soloLectura || c.editable === false ? '' : 'cursor-text'
                       } ${c.tipo === 'moneda' || c.tipo === 'entero' ? 'text-right' : 'text-left'} ${
                         // Todas las celdas comparten tamaño; solo cambia la familia
                         // en códigos e importes, para que las cifras se alineen.
@@ -153,10 +159,12 @@ export default function Grilla({
 
           {filas.length === 0 && (
             <tr>
-              <td colSpan={columnas.length + 1} className="px-4 py-16 text-center">
+              <td colSpan={columnas.length + (soloLectura ? 0 : 1)} className="px-4 py-16 text-center">
                 <p className="text-tinta-suave text-sm">No hay filas para este filtro.</p>
                 <p className="text-tinta-tenue text-xs mt-1">
-                  Cargá el reporte del mes o ampliá el rango de fechas.
+                  {soloLectura
+                    ? 'Ampliá el rango de fechas o quitá algún filtro.'
+                    : 'Cargá el reporte del mes o ampliá el rango de fechas.'}
                 </p>
               </td>
             </tr>

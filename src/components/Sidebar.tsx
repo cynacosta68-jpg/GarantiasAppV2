@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Logo from './Logo';
+import { useSesion } from './Sesion';
+import { nombreRol } from '@/lib/roles';
 
 const items = [
   { href: '/', etiqueta: 'Panel', icono: '▦' },
@@ -13,19 +14,10 @@ const items = [
   { href: '/usuarios', etiqueta: 'Usuarios', icono: '◍', soloAdmin: true },
 ];
 
-type Sesion = { nombre: string; email: string; rol: string };
-
 export default function Sidebar() {
   const ruta = usePathname();
   const router = useRouter();
-  const [sesion, setSesion] = useState<Sesion | null>(null);
-
-  useEffect(() => {
-    fetch('/api/auth/sesion')
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setSesion)
-      .catch(() => setSesion(null));
-  }, [ruta]);
+  const { sesion } = useSesion();
 
   const salir = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -70,7 +62,8 @@ export default function Sidebar() {
               {sesion.nombre}
             </p>
             <p className="text-[11px] text-white/50 mt-0.5">
-              {sesion.rol === 'admin' ? 'Administradora' : 'Operadora'}
+              {nombreRol(sesion.rol)}
+              {sesion.rol !== 'admin' && ' · solo consulta'}
             </p>
           </div>
           <button

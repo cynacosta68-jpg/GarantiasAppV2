@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { exigirEscritura } from '@/lib/permisos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,9 @@ const NUMERICOS = [
 const TEXTOS = ['repuesto', 'descripcion', 'proveedor', 'deposito', 'documento', 'pedido'] as const;
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const sesion = await exigirEscritura(req);
+  if (sesion instanceof NextResponse) return sesion;
+
   const body = await req.json();
   const data: Prisma.RepuestoUpdateInput = { editadoManual: true };
 
@@ -75,7 +79,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...f, costo: Number(f.costo), costoTotal: Number(f.costoTotal) });
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const sesion = await exigirEscritura(req);
+  if (sesion instanceof NextResponse) return sesion;
+
   await prisma.repuesto.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

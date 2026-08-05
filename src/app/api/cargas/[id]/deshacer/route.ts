@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { exigirEscritura } from '@/lib/permisos';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -19,7 +20,10 @@ type Respaldo = {
  * Las filas que alguien editó a mano después de la carga no se tocan: se
  * informan aparte para que quien deshace sepa qué quedó como estaba.
  */
-export async function POST(_req: NextRequest, { params }: Ctx) {
+export async function POST(req: NextRequest, { params }: Ctx) {
+  const sesion = await exigirEscritura(req);
+  if (sesion instanceof NextResponse) return sesion;
+
   const carga = await prisma.carga.findUnique({ where: { id: params.id } });
 
   if (!carga) {

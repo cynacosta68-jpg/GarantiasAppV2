@@ -6,6 +6,7 @@ import Grilla, { Columna } from '@/components/Grilla';
 import Detalle, { ConfigDetalle } from '@/components/Detalle';
 import CargaExcel from '@/components/CargaExcel';
 import HistorialCargas from '@/components/HistorialCargas';
+import { usePuedeEditar } from '@/components/Sesion';
 import { fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
 const TAM = 50;
@@ -59,6 +60,7 @@ export default function Repuestos() {
   const [seleccion, setSeleccion] = useState<string[]>([]);
   const [abierta, setAbierta] = useState<string | null>(null);
   const dimensiones = useDimensiones();
+  const puedeEditar = usePuedeEditar();
 
   const traer = useCallback(() => {
     setCargando(true);
@@ -108,10 +110,12 @@ export default function Repuestos() {
           Compras de repuestos facturadas, asociadas al documento y al pedido. Sin filtros se muestra
           todo el histórico cargado.
         </p>
-        <div className="flex flex-wrap items-start gap-2">
-          <HistorialCargas tipo="repuestos" onCambio={traer} />
-          <CargaExcel endpoint="/api/cargas-repuestos" etiqueta="Cargar compras de repuestos" onCargado={traer} />
-        </div>
+        {puedeEditar && (
+          <div className="flex flex-wrap items-start gap-2">
+            <HistorialCargas tipo="repuestos" onCambio={traer} />
+            <CargaExcel endpoint="/api/cargas-repuestos" etiqueta="Cargar compras de repuestos" onCargado={traer} />
+          </div>
+        )}
       </div>
 
       <Filtros
@@ -128,7 +132,7 @@ export default function Repuestos() {
           placeholder="Buscar por código, descripción, documento, pedido o proveedor"
           className="flex-1 min-w-[280px] bg-white border border-borde rounded px-3 py-2 text-sm text-tinta placeholder:text-tinta-tenue focus:border-azure outline-none"
         />
-        {seleccion.length > 0 && (
+        {puedeEditar && seleccion.length > 0 && (
           <button onClick={eliminarSeleccion} className="px-3 py-2 text-xs rounded border border-rojo text-rojo hover:bg-rojo-tenue">
             Eliminar {seleccion.length} seleccionada(s)
           </button>
@@ -151,6 +155,7 @@ export default function Repuestos() {
         onSeleccion={setSeleccion}
         onAbrir={setAbierta}
         onEditar={editar}
+        soloLectura={!puedeEditar}
       />
 
       {paginas > 1 && (
@@ -162,7 +167,15 @@ export default function Repuestos() {
         </div>
       )}
 
-      {abierta && <Detalle id={abierta} config={CONFIG} onCerrar={() => setAbierta(null)} onCambio={traer} />}
+      {abierta && (
+        <Detalle
+          id={abierta}
+          config={CONFIG}
+          onCerrar={() => setAbierta(null)}
+          onCambio={traer}
+          soloLectura={!puedeEditar}
+        />
+      )}
     </div>
   );
 }

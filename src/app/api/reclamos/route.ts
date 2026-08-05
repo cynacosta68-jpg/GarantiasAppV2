@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { leerFiltros, whereReclamos } from '@/lib/filtros';
 import { construirClave } from '@/lib/excel';
+import { exigirEscritura } from '@/lib/permisos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,9 @@ export async function GET(req: NextRequest) {
 
 /** Alta manual de una fila que no vino en el Excel. */
 export async function POST(req: NextRequest) {
+  const sesion = await exigirEscritura(req);
+  if (sesion instanceof NextResponse) return sesion;
+
   const body = await req.json();
   if (!body.reclamo || !body.orden) {
     return NextResponse.json({ error: 'Reclamo y Orden son obligatorios.' }, { status: 400 });
@@ -98,6 +102,9 @@ export async function POST(req: NextRequest) {
 
 /** Baja masiva desde la selección de la grilla. */
 export async function DELETE(req: NextRequest) {
+  const sesion = await exigirEscritura(req);
+  if (sesion instanceof NextResponse) return sesion;
+
   const { ids } = await req.json();
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'No hay filas seleccionadas.' }, { status: 400 });

@@ -6,6 +6,7 @@ import Grilla, { Columna } from '@/components/Grilla';
 import Detalle, { ConfigDetalle } from '@/components/Detalle';
 import CargaExcel from '@/components/CargaExcel';
 import HistorialCargas from '@/components/HistorialCargas';
+import { usePuedeEditar } from '@/components/Sesion';
 import { fmtMoneda, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
 const TAM = 50;
@@ -54,6 +55,7 @@ export default function Reclamos() {
   const [seleccion, setSeleccion] = useState<string[]>([]);
   const [abierta, setAbierta] = useState<string | null>(null);
   const dimensiones = useDimensiones();
+  const puedeEditar = usePuedeEditar();
 
   const traer = useCallback(() => {
     setCargando(true);
@@ -101,12 +103,16 @@ export default function Reclamos() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="text-sm text-tinta-tenue">
-          Un clic sobre una celda la edita. Doble clic sobre la fila abre la orden completa.
+          {puedeEditar
+            ? 'Un clic sobre una celda la edita. Doble clic sobre la fila abre la orden completa.'
+            : 'Doble clic sobre la fila abre la orden completa.'}
         </p>
-        <div className="flex flex-wrap items-start gap-2">
-          <HistorialCargas tipo="reclamos" onCambio={traer} />
-          <CargaExcel endpoint="/api/cargas" etiqueta="Cargar reclamos" onCargado={traer} />
-        </div>
+        {puedeEditar && (
+          <div className="flex flex-wrap items-start gap-2">
+            <HistorialCargas tipo="reclamos" onCambio={traer} />
+            <CargaExcel endpoint="/api/cargas" etiqueta="Cargar reclamos" onCargado={traer} />
+          </div>
+        )}
       </div>
 
       <Filtros valor={filtros} onCambio={setFiltros} mostrar={['fechas', 'sucursales']} dimensiones={dimensiones} />
@@ -129,7 +135,7 @@ export default function Reclamos() {
             </button>
           ))}
         </div>
-        {seleccion.length > 0 && (
+        {puedeEditar && seleccion.length > 0 && (
           <button onClick={eliminarSeleccion} className="px-3 py-2 text-xs rounded border border-rojo text-rojo hover:bg-rojo-tenue">
             Eliminar {seleccion.length} seleccionada(s)
           </button>
@@ -148,6 +154,7 @@ export default function Reclamos() {
         onSeleccion={setSeleccion}
         onAbrir={setAbierta}
         onEditar={editar}
+        soloLectura={!puedeEditar}
       />
 
       {paginas > 1 && (
@@ -159,7 +166,15 @@ export default function Reclamos() {
         </div>
       )}
 
-      {abierta && <Detalle id={abierta} config={CONFIG} onCerrar={() => setAbierta(null)} onCambio={traer} />}
+      {abierta && (
+        <Detalle
+          id={abierta}
+          config={CONFIG}
+          onCerrar={() => setAbierta(null)}
+          onCambio={traer}
+          soloLectura={!puedeEditar}
+        />
+      )}
     </div>
   );
 }
