@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import BarrasFinas from '@/components/BarrasFinas';
-import DonaCargos, { CargoPorSucursal } from '@/components/DonaCargos';
+import Dona from '@/components/Dona';
 import BarrasHorizontales from '@/components/BarrasHorizontales';
 import UltimasFacturas, { Factura } from '@/components/UltimasFacturas';
 import Kpi from '@/components/Kpi';
@@ -23,7 +23,6 @@ type Metricas = {
   serieIngresos: { periodo: string; cantidad: number; importe: number; importeFacturado: number }[];
   serieEgresos: { periodo: string; costo: number; lineas: number; unidades: number }[];
   porCargo: { etiqueta: string; valor: number; cantidad: number }[];
-  porCargoSucursal: CargoPorSucursal[];
   ultimasFacturas: Factura[];
   porSucursal: { etiqueta: string; cantidad: number; importe: number }[];
   porDeposito: { etiqueta: string; cantidad: number; importe: number }[];
@@ -114,11 +113,19 @@ export default function Panel() {
         </section>
 
         <section className="tarjeta p-5">
-          <p className="rotulo mb-1">Participación de cargos en lo facturado</p>
+          <p className="rotulo mb-1">Ingresos por sucursal</p>
           <p className="text-[11px] text-tinta-tenue mb-3">
-            Los porcentajes se calculan sobre el total de la sucursal elegida.
+            Participación de cada sucursal en el importe del ejercicio.
           </p>
-          <DonaCargos datos={datos?.porCargoSucursal ?? []} />
+          <div className="pt-4">
+            <Dona
+              datos={(datos?.porSucursal ?? []).map((s) => ({
+                etiqueta: s.etiqueta, valor: s.importe, cantidad: s.cantidad,
+              }))}
+              formato="moneda"
+              etiquetaCantidad="órdenes"
+            />
+          </div>
         </section>
       </div>
 
@@ -152,11 +159,6 @@ export default function Panel() {
           </div>
         </section>
       </div>
-
-      <section className="tarjeta p-5">
-        <p className="rotulo mb-4">Ingresos por sucursal</p>
-        <BarrasHorizontales datos={datos?.porSucursal ?? []} />
-      </section>
 
       <section className="tarjeta">
         <div className="px-5 pt-5 pb-3">

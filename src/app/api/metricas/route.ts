@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const [
     ordenes, pendientes, sumaOrdenes, sumaPendiente,
     filasIngreso, filasEgreso, porSucursal, porDeposito, porCargoCrudo,
-    porCargoSucursalCrudo, facturasCrudas,
+    facturasCrudas,
   ] = await Promise.all([
     prisma.reclamo.count({ where: wIngresos }),
     prisma.reclamo.count({ where: { ...wIngresos, comprobante: null } }),
@@ -58,12 +58,6 @@ export async function GET(req: NextRequest) {
       by: ['cargo'], where: wIngresos,
       _count: { _all: true }, _sum: { valor: true },
       orderBy: { _sum: { valor: 'desc' } },
-    }),
-    // Cargos abiertos por sucursal: la torta del panel filtra sobre esto sin
-    // volver a pedirle nada al servidor.
-    prisma.reclamo.groupBy({
-      by: ['sucursal', 'cargo'], where: wIngresos,
-      _count: { _all: true }, _sum: { valor: true },
     }),
     // Últimas facturas emitidas. Se agrupa por comprobante porque una factura
     // suele cubrir varias líneas de reclamo. Se exige fecha FC: sin ella no hay
@@ -177,14 +171,6 @@ export async function GET(req: NextRequest) {
         },
       ];
     })(),
-    // Sin agrupar en "Otros": la torta arma su propio corte según la sucursal
-    // que se elija, y agrupar acá le sacaría la cola que después necesita.
-    porCargoSucursal: porCargoSucursalCrudo.map((c: any) => ({
-      sucursal: c.sucursal ?? 'Sin asignar',
-      cargo: c.cargo ?? 'Sin cargo',
-      valor: Number(c._sum.valor ?? 0),
-      cantidad: c._count._all as number,
-    })),
     ultimasFacturas: facturasCrudas.map((f: any) => {
       const lineas = lineasFactura.filter((l: any) => l.comprobante === f.comprobante);
       const ordenes = new Set(lineas.map((l: any) => l.orden));

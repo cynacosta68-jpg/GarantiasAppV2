@@ -2,6 +2,15 @@
 
 import { fmtFecha, fmtMonedaExacta, fmtNumero } from '@/lib/format';
 
+/**
+ * Titular de todas las facturas de garantía.
+ *
+ * El reclamo guarda el dueño del vehículo, pero la factura la emite la
+ * concesionaria, así que la columna muestra siempre lo mismo. Si algún día hace
+ * falta ver el cliente del reclamo, el dato sigue llegando en `f.cliente`.
+ */
+const CLIENTE_EMISOR = 'Del sol automotor';
+
 export type Factura = {
   comprobante: string;
   fecha: string | Date | null;
@@ -53,7 +62,7 @@ export default function UltimasFacturas({ datos }: { datos: Factura[] }) {
                 {fmtFecha(f.fecha)}
               </td>
               <td className="px-3 py-2.5 text-xs text-tinta-suave max-w-[260px]">
-                <span className="block truncate">{f.cliente ?? '—'}</span>
+                <span className="block truncate">{CLIENTE_EMISOR}</span>
               </td>
               <td className="px-3 py-2.5 text-xs text-tinta-suave whitespace-nowrap">
                 {f.sucursal ?? '—'}
